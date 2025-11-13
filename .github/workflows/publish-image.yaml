@@ -3,6 +3,16 @@ name: Publish Image
 
 on:
   workflow_call:
+    secrets:
+      DOPPLER_TOKEN:
+        description: The Doppler token to fetch the BuildKit client certs.
+        required: true
+      DOPPLER_PROJECT:
+        description: The Doppler project to fetch the BuildKit client certs.
+        required: true
+      DOPPLER_CONFIG:
+        description: The Doppler config to fetch the BuildKit client certs (e.g. prod).
+        required: true
     inputs:
       tag:
         description: The tag to publish
