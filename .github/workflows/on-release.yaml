@@ -1,0 +1,17 @@
+---
+name: On Release
+
+on:
+  release:
+    types:
+      - published
+
+jobs:
+  publish-image:
+    uses: ./.github/workflows/publish-image.yaml
+    secrets:
+      DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
+      DOPPLER_PROJECT: ${{ secrets.DOPPLER_PROJECT }}
+      DOPPLER_CONFIG: ${{ secrets.DOPPLER_CONFIG }}
+    with:
+      tag: ${{ github.event.release.tag_name }}
