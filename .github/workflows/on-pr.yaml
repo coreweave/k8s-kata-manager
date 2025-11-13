@@ -1,0 +1,14 @@
+---
+name: On Pull Request
+
+on:
+  pull_request:
+    branches:
+      - main
+      - coreweave
+
+jobs:
+  build-and-push-image:
+    uses: ./.github/workflows/publish-image.yaml
+    with:
+      tag: ${{ github.sha }}

@@ -1,0 +1,40 @@
+---
+name: Publish Image
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: The tag to publish
+        required: false
+        type: string
+        default: ${{ github.sha }}
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  publish:
+    runs-on: cw
+    container: ghcr.io/coreweave/github-actions-images/github-base-runner:v1.15.0
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - uses: coreweave/actions-public/build/buildx-build@v1.0.0
+        with:
+          context: ./
+          tags: ghcr.io/{{ github.repository }}/k8s-kata-manager:${{ inputs.tag }}
+          dockerfile: ./deployments/container/Dockerfile
+          endpoint: tcp://buildkitd-amd64.git-devprod:1234
+          append: |
+            - endpoint: tcp://buildkitd-arm64.git-devprod:1234
+          buildx-args: |
+            --platform=linux/amd64,linux/arm64
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+          doppler-token: ${{ secrets.DOPPLER_TOKEN }}
+          doppler-project: ${{ secrets.DOPPLER_PROJECT }}
+          doppler-config: ${{ secrets.DOPPLER_CONFIG }}
