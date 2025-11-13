@@ -25,7 +25,7 @@ jobs:
       - uses: coreweave/actions-public/build/buildx-build@v1.0.0
         with:
           context: ./
-          tags: ghcr.io/{{ github.repository }}/k8s-kata-manager:${{ inputs.tag }}
+          tags: ghcr.io/${{ github.repository }}/k8s-kata-manager:${{ inputs.tag }}
           dockerfile: ./deployments/container/Dockerfile
           endpoint: tcp://buildkitd-amd64.git-devprod:1234
           append: |
