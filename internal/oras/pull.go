@@ -25,6 +25,7 @@ import (
 	utils "github.com/NVIDIA/k8s-kata-manager/internal/utils"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"k8s.io/klog/v2"
 	oras "oras.land/oras-go/v2"
 	"oras.land/oras-go/v2/content/file"
 	"oras.land/oras-go/v2/registry/remote"
@@ -70,13 +71,6 @@ func NewArtifact(ref string, output string) (*Artifact, error) {
 
 // Pull pulls the artifact from the remote repository into a local path
 func (a *Artifact) Pull(ctx context.Context, creds *auth.Credential) (ocispec.Descriptor, error) {
-	// Create a file store
-	fs, err := file.New(a.Output)
-	if err != nil {
-		return ocispec.Descriptor{}, err
-	}
-	defer fs.Close()
-
 	// Connect to a remote repository
 	repo, err := remote.NewRepository(a.Repository)
 	if err != nil {
@@ -101,12 +95,40 @@ func (a *Artifact) Pull(ctx context.Context, creds *auth.Credential) (ocispec.De
 		OS:           runtime.GOOS,
 	})
 
+	// Create a file store
+	fs, err := file.New(a.Output)
+	if err != nil {
+		return ocispec.Descriptor{}, err
+	}
+	defer fs.Close()
+
 	desc, err := oras.Copy(ctx, repo, a.Tag, fs, a.Tag, copyOpts)
 	if err != nil {
-		// If platform-specific copy fails, fall back to default options
+		klog.Warningf("Platform-specific copy failed for %s (platform: %s/%s): %v", a.Repository, runtime.GOOS, runtime.GOARCH, err)
+		klog.Infof("Falling back to default copy options without platform specification")
+
+		// Close the first file store before creating a new one
+		fs.Close()
+
+		// If platform-specific copy fails, fall back to default options with a fresh file store
 		// This handles cases where the manifest doesn't specify a platform
-		return oras.Copy(ctx, repo, a.Tag, fs, a.Tag, oras.DefaultCopyOptions)
+		fs, err = file.New(a.Output)
+		if err != nil {
+			klog.Errorf("Failed to create file store for fallback copy: %v", err)
+			return ocispec.Descriptor{}, err
+		}
+		defer fs.Close()
+
+		desc, err := oras.Copy(ctx, repo, a.Tag, fs, a.Tag, oras.DefaultCopyOptions)
+		if err != nil {
+			klog.Errorf("Fallback copy also failed for %s: %v", a.Repository, err)
+			return ocispec.Descriptor{}, err
+		}
+
+		klog.Infof("Successfully pulled artifact using fallback method")
+		return desc, nil
 	}
 
+	klog.V(2).Infof("Successfully pulled artifact %s with platform-specific options", a.Repository)
 	return desc, nil
 }
