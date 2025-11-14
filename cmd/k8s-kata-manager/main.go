@@ -17,6 +17,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -333,11 +334,22 @@ func (w *worker) Run(c *cli.Context) error {
 	}
 	klog.Info("runtime successfully restarted")
 
+	klog.Info("Labeling node to indicate kata containers support")
+	labels := map[string]string{
+		"kata.coreweave.cloud/runtime": "true",
+	}
+	if err := k8scli.LabelNode(ctx, k8sclient.NodeLabelActionAdd, labels); err != nil {
+		klog.Errorf("Failed to label node: %s", err)
+		// Don't fail the entire setup if labeling fails, just log the error
+	} else {
+		klog.Info("Node successfully labeled")
+	}
+
 	if err := waitForSignal(); err != nil {
 		return fmt.Errorf("unable to wait for signal: %w", err)
 	}
 
-	if err := w.CleanUp(); err != nil {
+	if err := w.CleanUp(ctx, k8scli); err != nil {
 		return fmt.Errorf("unable to revert config: %w", err)
 	}
 
@@ -362,7 +374,18 @@ func (w *worker) getRuntimeConfig() (runtime.Runtime, error) {
 }
 
 // CleanUp reverts the runtime config added by kata manager
-func (w *worker) CleanUp() error {
+func (w *worker) CleanUp(ctx context.Context, k8scli k8sclient.K8sCli) error {
+	klog.Info("Removing node label to indicate kata containers support removed")
+	labels := map[string]string{
+		"kata.coreweave.cloud/runtime": "",
+	}
+	if err := k8scli.LabelNode(ctx, k8sclient.NodeLabelActionRemove, labels); err != nil {
+		klog.Errorf("Failed to remove node label: %s", err)
+		// Don't fail the entire cleanup if label removal fails, just log the error
+	} else {
+		klog.Info("Node label successfully removed")
+	}
+
 	runtimeConfig, err := w.getRuntimeConfig()
 	if err != nil {
 		klog.Errorf("error creating runtime config client : %s", err)
@@ -387,6 +410,7 @@ func (w *worker) CleanUp() error {
 	if err := runtimeConfig.Restart(); err != nil {
 		return fmt.Errorf("unable to restart runtime service: %w", err)
 	}
+
 	return nil
 }
 

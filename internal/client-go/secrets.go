@@ -44,13 +44,13 @@ type RegistryCredentials struct {
 	Auth     string `json:"auth"`
 }
 
-func (k *k8scli) GetCredentials(ctx context.Context, rc api.RuntimeClass) (*auth.Credential, error) {
+func (k *K8sCli) GetCredentials(ctx context.Context, rc api.RuntimeClass) (*auth.Credential, error) {
 	if rc.Artifacts.PullSecret == "" {
 		return nil, nil
 	}
 
 	auths := Auths{}
-	secret, err := k.Get(ctx, rc.Artifacts.PullSecret, metav1.GetOptions{})
+	secret, err := k.SecretInterface.Get(ctx, rc.Artifacts.PullSecret, metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("error getting secret: %w", err)
 	}
