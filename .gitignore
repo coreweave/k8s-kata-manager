@@ -15,3 +15,8 @@
 bin
 
 .history
+
+# k8s-kata-manager binaries
+k8s-kata-manager
+kata-manager
+
